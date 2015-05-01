@@ -3,12 +3,14 @@
 /**
  * UPS Integration for Isotope eCommerce for Contao Open Source CMS
  *
- * Copyright (C) 2014 HB Agency
+ * Copyright (C) 2015 Rhyme Digital, LLC.
  *
- * @package    Isotope_UPSShipping
- * @link       http://www.hbagency.com
- * @license    http://opensource.org/licenses/lgpl-3.0.html
+ * @author		Blair Winans <blair@rhyme.digital>
+ * @author		Adam Fisher <adam@rhyme.digital>
+ * @link		http://rhyme.digital
+ * @license		http://www.gnu.org/licenses/lgpl-3.0.html LGPL
  */
+
 
 $GLOBALS['TL_DCA']['tl_iso_product_collection']['palettes']['default'] .= ';{ups_legend},ups_tracking_number';
 

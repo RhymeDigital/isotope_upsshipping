@@ -3,14 +3,15 @@
 /**
  * UPS Integration for Isotope eCommerce for Contao Open Source CMS
  *
- * Copyright (C) 2014 HB Agency
+ * Copyright (C) 2015 Rhyme Digital, LLC.
  *
- * @package    Isotope_UPSShipping
- * @link       http://www.hbagency.com
- * @license    http://opensource.org/licenses/lgpl-3.0.html
+ * @author		Blair Winans <blair@rhyme.digital>
+ * @author		Adam Fisher <adam@rhyme.digital>
+ * @link		http://rhyme.digital
+ * @license		http://www.gnu.org/licenses/lgpl-3.0.html LGPL
  */
- 
-namespace HBAgency\Model\Shipping;
+
+namespace Rhyme\Model\Shipping;
 
 use Contao\Cache;
 use Contao\Model;
@@ -20,6 +21,9 @@ use Isotope\Isotope;
 use Isotope\Model\Shipping as Iso_Shipping;
 use UPS\Rate;
 use stdClass;
+use Haste\Units\Mass\Scale;
+use Haste\Units\Mass\Weighable;
+use Haste\Units\Mass\WeightAggregate;
 
 /**
  * Class UPS
@@ -31,9 +35,9 @@ use stdClass;
 class UPS extends Iso_Shipping implements IsotopeShipping
 {
 
-
     /**
      * Return calculated price for this shipping method
+     * @param IsotopeProductCollection
      * @return float
      */
     public function getPrice(IsotopeProductCollection $objCollection = null)
@@ -57,12 +61,13 @@ class UPS extends Iso_Shipping implements IsotopeShipping
 		//Make Call to UPS API to retrieve pricing
 		$fltPrice += $this->getLiveRateQuote($objCollection);
         
-        return Isotope::calculatePrice($fltPrice, $this, 'price', $this->arrData['tax_class']);
+        return Isotope::calculatePrice($fltPrice, $this, 'ups', $this->arrData['tax_class']);
     }
     
     
     /**
      * Return calculated price for this shipping method
+     * @param IsotopeProductCollection
      * @return float
      */
     protected function getLiveRateQuote(IsotopeProductCollection $objCollection)
@@ -89,6 +94,7 @@ class UPS extends Iso_Shipping implements IsotopeShipping
             
             try{
                 $objResponse = $UPS->getRate($Shipment);
+                
                 $fltPrice = (float) $objResponse->RatedShipment->TotalCharges->MonetaryValue;
             } catch (\Exception $e){
                 //@!TODO post error message
@@ -145,9 +151,7 @@ class UPS extends Iso_Shipping implements IsotopeShipping
         $ShipTo->Address = $ShipToAddress;
         $ShipTo->AttentionName = $objShippingAddress->firstname . ' ' . $objShippingAddress->lastname;
         $Shipment->ShipTo = $ShipTo;
-        
-        $Package = static::buildPackage($objCollection);
-        $Shipment->Package = array($Package);
+        $Shipment->Package = array(static::buildPackage($objCollection));
         
         return $Shipment;
     }
@@ -182,6 +186,7 @@ class UPS extends Iso_Shipping implements IsotopeShipping
     protected static function buildPackage(IsotopeProductCollection $objCollection)
     {
         $Package = new stdClass();
+        $strWeight = strval($objCollection->addToScale()->amountIn('kg'));
         
         //Packaging Type
         $PackagingType = new stdClass();
@@ -202,9 +207,9 @@ class UPS extends Iso_Shipping implements IsotopeShipping
         //Package Weight
         $PackageWeight = new stdClass();
         $UnitOfMeasurementW = new stdClass();
-        $UnitOfMeasurementW->Code = 'LBS';
+        $UnitOfMeasurementW->Code = 'KGS';
         $PackageWeight->UnitOfMeasurement = $UnitOfMeasurementW;
-        $PackageWeight->Weight = '1';
+        $PackageWeight->Weight = $strWeight == 0 ? '0.1' : $strWeight;
         $Package->PackageWeight = $PackageWeight;
         
         return $Package;
@@ -223,7 +228,15 @@ class UPS extends Iso_Shipping implements IsotopeShipping
          $strBase .= $objShippingAddress->street_1;
          $strBase .= $objShippingAddress->city;
          $strBase .= $objShippingAddress->subdivision;
-         $strBase .= $objModel->postal;
+         $strBase .= $objShippingAddress->postal;
+         
+         // Hash the cart too
+         foreach ($objCollection->getItems() as $item)
+         {
+	         $strBase .= $item->quantity;
+	         $strBase .= $item->id;
+	         $strBase .= implode(',', $item->getOptions());
+         }
          
          return md5($strBase);
      }

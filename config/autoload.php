@@ -3,18 +3,19 @@
 /**
  * UPS Integration for Isotope eCommerce for Contao Open Source CMS
  *
- * Copyright (C) 2014 HB Agency
+ * Copyright (C) 2015 Rhyme Digital, LLC.
  *
- * @package    Isotope_UPSShipping
- * @link       http://www.hbagency.com
- * @license    http://opensource.org/licenses/lgpl-3.0.html
+ * @author		Blair Winans <blair@rhyme.digital>
+ * @author		Adam Fisher <adam@rhyme.digital>
+ * @link		http://rhyme.digital
+ * @license		http://www.gnu.org/licenses/lgpl-3.0.html LGPL
  */
- 
+
 
 /**
  * Register PSR-0 namespace
  */
-NamespaceClassLoader::add('HBAgency', 'system/modules/isotope_upsshipping/library');
+NamespaceClassLoader::add('Rhyme', 'system/modules/isotope_upsshipping/library');
 NamespaceClassLoader::add('UPS', 'system/modules/isotope_upsshipping/vendor/php-ups-api/lib');
 
 
