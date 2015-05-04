@@ -4,7 +4,9 @@
     "keywords": [
     	"ups", 
     	"contao",
-    	"shipping"
+    	"shipping",
+    	"isotope",
+    	"isotope_upsshipping"
     ],
     "type": "contao-module",
     "license": "LGPL-3.0+",
