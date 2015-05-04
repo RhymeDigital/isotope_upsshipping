@@ -19,7 +19,20 @@ use Isotope\Interfaces\IsotopeProductCollection;
 use Isotope\Interfaces\IsotopeShipping;
 use Isotope\Isotope;
 use Isotope\Model\Shipping as Iso_Shipping;
-use UPS\Rate;
+use Ups\Rate as Ups_Rate;
+use Ups\Entity\Address as Ups_Address;
+use Ups\Entity\Dimensions as Ups_Dimensions;
+use Ups\Entity\InsuredValue as Ups_InsuredValue;
+use Ups\Entity\Package as Ups_Package;
+use Ups\Entity\PackageWeight as Ups_PackageWeight;
+use Ups\Entity\PackagingType as Ups_PackagingType;
+use Ups\Entity\PackageServiceOptions as Ups_PackageServiceOptions;
+use Ups\Entity\Service as Ups_Service;
+use Ups\Entity\Shipment as Ups_Shipment;
+use Ups\Entity\ShipFrom as Ups_ShipFrom;
+use Ups\Entity\ShipTo as Ups_ShipTo;
+use Ups\Entity\Shipper as Ups_Shipper;
+use Ups\Entity\UnitOfMeasurement as Ups_UnitOfMeasurement;
 use stdClass;
 use Haste\Units\Mass\Scale;
 use Haste\Units\Mass\Weighable;
@@ -28,9 +41,9 @@ use Haste\Units\Mass\WeightAggregate;
 /**
  * Class UPS
  *
- * @copyright  HB Agency 2009-2012
- * @author     Blair Winans <bwinans@hbagency.com>
- * @author     Adam Fisher <afisher@hbagency.com>
+ * Copyright (C) 2015 Rhyme Digital, LLC.
+ * @author		Blair Winans <blair@rhyme.digital>
+ * @author		Adam Fisher <adam@rhyme.digital>
  */
 class UPS extends Iso_Shipping implements IsotopeShipping
 {
@@ -75,7 +88,7 @@ class UPS extends Iso_Shipping implements IsotopeShipping
         $fltPrice = 0.00;
     
         //get a hash for the cache
-        $strHash = static::makeHash($objCollection);
+        $strHash = static::makeHash($objCollection, array($this->ups_enabledService));
     
         if(!Cache::has($strHash)) {
     
@@ -86,7 +99,7 @@ class UPS extends Iso_Shipping implements IsotopeShipping
             $Config = Isotope::getConfig();
             
             //UPS Rate Object
-            $UPS = new Rate( $Config->UpsAccessKey,
+            $UPS = new Ups_Rate( $Config->UpsAccessKey,
                              $Config->UpsUsername, 
                              $Config->UpsPassword, 
                              ($Config->UpsMode == 'test' ? true : false));
@@ -94,8 +107,7 @@ class UPS extends Iso_Shipping implements IsotopeShipping
             
             try{
                 $objResponse = $UPS->getRate($Shipment);
-                
-                $fltPrice = (float) $objResponse->RatedShipment->TotalCharges->MonetaryValue;
+                $fltPrice = (float) $objResponse->RatedShipment[0]->TotalCharges->MonetaryValue;
             } catch (\Exception $e){
                 //@!TODO post error message
             }
@@ -117,41 +129,41 @@ class UPS extends Iso_Shipping implements IsotopeShipping
         $Config = Isotope::getConfig();
     
         //Create the shipment
-        $Shipment = new stdClass();
+        $Shipment = new Ups_Shipment();
         
-        //Apply the service information
-        $Service = new stdClass();
-        $Service->Code          = $this->ups_enabledService;
-        $Service->Description   = $GLOBALS['TL_LANG']['tl_iso_shipping']['ups_service'][$this->ups_enabledService];
-        $Shipment->Service = $Service;
+        // Create the service
+        $Service = new Ups_Service();
+        $Service->setCode($this->ups_enabledService);
+        $Service->setDescription($GLOBALS['TL_LANG']['tl_iso_shipping']['ups_service'][$this->ups_enabledService]);
+        $Shipment->setService($Service);
         
         //Build Shipper information
-        $Shipper = new stdClass();
-        $Shipper->ShipperNumber = $Config->UpsAccountNumber;
+        $Shipper = new Ups_Shipper();
+        $Shipper->setShipperNumber($Config->UpsAccountNumber);
         
         //ShipFrom Address
         $ShipFromAddress = static::buildAddress($Config);
         
         //Assign to Shipper
-        $Shipper->Address = $ShipFromAddress;
-        $Shipment->Shipper = $Shipper;
+        $Shipper->setAddress($ShipFromAddress);
+        $Shipment->setShipper($Shipper);
         
         //ShipFrom Object
-        $ShipFrom = new stdClass();
-        $ShipFrom->Address = $ShipFromAddress;
-        $ShipFrom->Company = $Config->company;
-        $Shipment->ShipFrom = $ShipFrom;
+        $ShipFrom = new Ups_ShipFrom();
+        $ShipFrom->setAddress($ShipFromAddress);
+        $ShipFrom->setCompanyName($Config->company);
+        $Shipment->setShipFrom($ShipFrom);
         
         //ShipTo Address
         $objShippingAddress = $objCollection->getShippingAddress();
         $ShipToAddress = static::buildAddress($objShippingAddress);
         
         //ShipTo Object
-        $ShipTo = new stdClass();
-        $ShipTo->Address = $ShipToAddress;
-        $ShipTo->AttentionName = $objShippingAddress->firstname . ' ' . $objShippingAddress->lastname;
-        $Shipment->ShipTo = $ShipTo;
-        $Shipment->Package = array(static::buildPackage($objCollection));
+	    $ShipTo = new Ups_ShipTo();
+        $ShipTo->setAddress($ShipToAddress);
+        $ShipTo->setAttentionName($objShippingAddress->firstname . ' ' . $objShippingAddress->lastname);
+        $Shipment->setShipTo($ShipTo);
+        $Shipment->setPackages($this->buildPackages($objCollection));
         
         return $Shipment;
     }
@@ -163,16 +175,15 @@ class UPS extends Iso_Shipping implements IsotopeShipping
      */
     protected static function buildAddress(Model $objModel)
     {
-        $Address = new stdClass();
+        $Address = new Ups_Address();
         $arrSubdivision = explode('-', $objModel->subdivision);
-        $Address = new stdClass();
-        $Address->AddressLine1          = $objModel->street_1;
-        $Address->AddressLine2          = $objModel->street_2;
-        $Address->AddressLine3          = $objModel->street_3;
-        $Address->City                  = $objModel->city;
-        $Address->StateProvinceCode     = strtoupper($arrSubdivision[1]);
-        $Address->PostalCode            = $objModel->postal;
-        $Address->CountryCode           = strtoupper($arrSubdivision[0]);
+        $Address->setAddressLine1($objModel->street_1);
+        $Address->setAddressLine2($objModel->street_2);
+        $Address->setAddressLine3($objModel->street_3);
+        $Address->setCity($objModel->city);
+        $Address->setStateProvinceCode(strtoupper($arrSubdivision[1]));
+        $Address->setPostalCode($objModel->postal);
+        $Address->setCountryCode(strtoupper($arrSubdivision[0]));
         
         return $Address;
     }
@@ -183,37 +194,96 @@ class UPS extends Iso_Shipping implements IsotopeShipping
      * @param IsotopeProductCollection
      * @return stdClass
      */
-    protected static function buildPackage(IsotopeProductCollection $objCollection)
+    protected function buildPackages(IsotopeProductCollection $objCollection)
     {
-        $Package = new stdClass();
-        $strWeight = strval($objCollection->addToScale()->amountIn('kg'));
+    	$arrPackages = array();
+    	
+    	foreach ($objCollection->getItems() as $objItem)
+    	{
+			$product = $objItem->getProduct();
+			$arrDimensions = $product->package_dimensions;
+	        $Package = new Ups_Package();
+			$strWeight = strval($this->getShippingWeight($objItem, 'lb'));
+			
+            for ($i = 0; $i < $objItem->quantity; $i++) {
+		        
+		        //Packaging Type
+		        $PackagingType = new Ups_PackagingType();
+		        $PackagingType->setCode('02'); //Box for now
+		        $PackagingType->setDescription('');
+		        $Package->setPackagingType($PackagingType);
+		        
+		        //Package Dimensions
+		        $Dimensions = new Ups_Dimensions();
+		        $UnitOfMeasurementD = new Ups_UnitOfMeasurement();
+		        $UnitOfMeasurementD->setCode('IN');
+		        $Dimensions->setUnitOfMeasurement($UnitOfMeasurementD);
+		        $Dimensions->setLength(round($arrDimensions[0]));
+		        $Dimensions->setWidth(round($arrDimensions[1]));
+		        $Dimensions->setHeight(round($arrDimensions[2]));
+		        $Package->setDimensions($Dimensions);
+		        
+		        //Package Weight
+		        $PackageWeight = new Ups_PackageWeight();
+		        $UnitOfMeasurementW = new Ups_UnitOfMeasurement();
+		        $UnitOfMeasurementW->setCode('LBS');
+		        $PackageWeight->setUnitOfMeasurement($UnitOfMeasurementW);
+		        $PackageWeight->setWeight($strWeight == 0 ? '1' : $strWeight);
+		        $Package->setPackageWeight($PackageWeight);
+				
+		        //Insured Value
+				if ($this->ups_insure_packages)
+				{
+			        $InsuredValue = new Ups_InsuredValue();
+			        $InsuredValue->setCurrencyCode('USD'); //For now
+			        $InsuredValue->setMonetaryValue($objItem->getProduct()->getPrice()->getAmount(1));
+			        $PackageServiceOptions = new Ups_PackageServiceOptions();
+			        $PackageServiceOptions->setInsuredValue($InsuredValue);
+			        $Package->setPackageServiceOptions($PackageServiceOptions);
+				}
+		        
+		        $arrPackages[] = $Package;
+	        }
+    	}
         
-        //Packaging Type
-        $PackagingType = new stdClass();
-        $PackagingType->Code = '02'; //Box for now
-        $PackagingType->Description = '';
-        $Package->PackagingType = $PackagingType;
-        
-        //Package Dimensions
-        $Dimensions = new stdClass();
-        $UnitOfMeasurementD = new stdClass();
-        $UnitOfMeasurementD->Code = 'IN';
-        $Dimensions->UnitOfMeasurement = $UnitOfMeasurementD;
-        $Dimensions->Length = '12';
-        $Dimensions->Width = '12';
-        $Dimensions->Height = '12';
-        $Package->Dimensions = $Dimensions;
-        
-        //Package Weight
-        $PackageWeight = new stdClass();
-        $UnitOfMeasurementW = new stdClass();
-        $UnitOfMeasurementW->Code = 'KGS';
-        $PackageWeight->UnitOfMeasurement = $UnitOfMeasurementW;
-        $PackageWeight->Weight = $strWeight == 0 ? '0.1' : $strWeight;
-        $Package->PackageWeight = $PackageWeight;
-        
-        return $Package;
+        return $arrPackages;
     }
+	
+	
+	
+	/**
+	 * Calculate the weight of all products in the cart in a specific weight unit
+	 *
+	 * @access public
+	 * @param array
+	 * @param string
+	 * @return string
+	 */
+	public static function getShippingWeight($objItem, $unit)
+	{
+        if (null === $objScale) {
+            $objScale = new Scale();
+        }
+
+        if (!$objItem->hasProduct()) {
+            return 0.0;
+        }
+
+        $objProduct = $objItem->getProduct();
+
+        if ($objProduct instanceof WeightAggregate) {
+            $objWeight = $objProduct->getWeight();
+
+            if (null !== $objWeight) {
+                $objScale->add($objWeight);
+            }
+
+        } elseif ($objProduct instanceof Weighable) {
+            $objScale->add($objProduct);
+        }
+
+        return $objScale->amountIn($unit);
+	}
     
 
     /**
@@ -221,9 +291,10 @@ class UPS extends Iso_Shipping implements IsotopeShipping
      * @param IsotopeProductCollection
      * @return string
      */
-     protected static function makeHash(IsotopeProductCollection $objCollection)
+     protected static function makeHash(IsotopeProductCollection $objCollection, $arrExtras=array())
      {
-         $strBase = '';
+         $strBase = get_called_class();
+         $strBase .= !empty($arrExtras) ? implode(',', $arrExtras) : '';
          $objShippingAddress = $objCollection->getShippingAddress();
          $strBase .= $objShippingAddress->street_1;
          $strBase .= $objShippingAddress->city;
@@ -240,6 +311,20 @@ class UPS extends Iso_Shipping implements IsotopeShipping
          
          return md5($strBase);
      }
+
+	/**
+	 * Use output buffer to var dump to a string
+	 * 
+	 * @param	string
+	 * @return	string 
+	 */
+	public static function varDumpToString($var)
+	{
+		ob_start();
+		var_dump($var);
+		$result = ob_get_clean();
+		return $result;
+	}
      
 
 	

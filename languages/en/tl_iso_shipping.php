@@ -15,6 +15,7 @@
  * Fields
  */
 $GLOBALS['TL_LANG']['tl_iso_shipping']['ups_enabledService']	= array('UPS Service Type','Select a UPS shipping service to offer.');
+$GLOBALS['TL_LANG']['tl_iso_shipping']['ups_insure_packages']	= array('Insure UPS Packages?','If this is checked, any packages over the $100 limit will be insured.');
 
 /**
  * Legends

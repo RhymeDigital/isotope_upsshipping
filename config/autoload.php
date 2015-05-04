@@ -16,13 +16,3 @@
  * Register PSR-0 namespace
  */
 NamespaceClassLoader::add('Rhyme', 'system/modules/isotope_upsshipping/library');
-NamespaceClassLoader::add('UPS', 'system/modules/isotope_upsshipping/vendor/php-ups-api/lib');
-
-
-/**
- * Register classes outside the namespace folder
- */
-NamespaceClassLoader::addClassMap(array
-(
-    
-));

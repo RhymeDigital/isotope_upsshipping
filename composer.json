@@ -1,0 +1,44 @@
+{
+    "name": "rhymedigital/isotope_upsshipping",
+    "description": "A UPS shipping module for Isotope eCommerce and Contao CMS.",
+    "keywords": [
+    	"ups", 
+    	"contao",
+    	"shipping"
+    ],
+    "type": "contao-module",
+    "license": "LGPL-3.0+",
+    "authors": [
+        {
+            "name": "Rhyme Digital",
+            "homepage": "http://rhyme.digital"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.2",
+        "contao/core": ">=3.3.0,<4.0.0-dev",
+        "contao-community-alliance/composer-installer": "*",
+        "terminal42/contao-namespace-class-loader":"~1.0",
+        "codefog/contao-haste":"~4.3",
+        "gabrielbull/ups-api": "dev-master"
+    },
+    "autoload": {
+        "psr-0": {
+            "Rhyme\\": [
+                "library/"
+            ]
+        }
+    },
+    "extra": {
+        "contao": {
+            "sources": {
+                "": "system/modules/isotope_upsshipping"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "preferred-install": "dist"
+    }
+}
